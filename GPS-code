@@ -1,0 +1,153 @@
+#include "TinyGPS++.h"
+#include "SoftwareSerial.h"
+#include <Wire.h> 
+#include <SPI.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+//#include <SFE_BMP180.h>
+
+
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 32 // OLED display height, in pixels
+
+#define OLED_RESET     4 // Reset pin # (or -1 if sharing Arduino reset pin)
+#define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+/*
+//LCD output code
+#include <LiquidCrystal_I2C.h>
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+*/
+
+//SFE_BMP180 pressure;
+
+SoftwareSerial serial_connection(12, 11); //RX=pin 10, TX=pin 11
+TinyGPSPlus gps;//This is the GPS object that will pretty much do all the grunt work with the NMEA data
+
+void setup() {
+  
+display.begin(SSD1306_SWITCHCAPVCC, 0x3C );
+Serial.begin(9600);//This opens up communications to the Serial monitor in the Arduino IDE
+serial_connection.begin(9600);//This opens up communications to the GPS
+Serial.println("GPS Start");//Just show to the monitor that the sketch has started
+
+// SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+    Serial.println(F("SSD1306 allocation failed"));
+    for(;;); // Don't proceed, loop forever
+  }
+
+display.clearDisplay();
+
+  //display.drawFastHLine(0, 32, SSD1306_LCDWIDTH, WHITE);
+
+  display.setTextSize(1);
+  display.setTextColor(WHITE, BLACK);
+  display.setCursor(0, 0);
+  display.print("Spd:");
+  display.setCursor(0, 10);
+  display.print("Alt:");
+  display.display();
+  display.setCursor(0, 20);
+  display.print("Sats:");
+  display.display();
+
+/*
+//LCD output code
+lcd.begin();
+lcd.backlight();// turn on lcd backlight
+//lcd.init();// initialize lcd
+*/
+
+/*if (pressure.begin())
+    Serial.println("BMP180 init success");
+  else
+  {
+    // Oops, something went wrong, this is usually a connection problem,
+    // see the comments at the top of this sketch for the proper connections.
+
+    Serial.println("BMP180 init fail\n\n");
+    while(1); // Pause forever.
+  }*/
+}
+void loop()
+{ 
+while(serial_connection.available())//While there are characters to come from the GPS
+{
+gps.encode(serial_connection.read());//This feeds the serial NMEA data into the library one char at a time
+}
+if(gps.location.isUpdated())//This will pretty much be fired all the time anyway but will at least reduce it to only after a package of NMEA data comes in
+{
+//Get the latest info from the gps object which it derived from the data sent by the GPS unit
+Serial.println("Satellite Count:");
+Serial.println(gps.satellites.value());
+Serial.println("Latitude:");
+Serial.println(gps.location.lat(), 6);
+Serial.println("Longitude:");
+Serial.println(gps.location.lng(), 6);
+Serial.println("Speed MPH:");
+Serial.println(gps.speed.mph());
+Serial.println("Altitude Feet:");
+Serial.println(gps.altitude.feet());
+Serial.println("");
+ }
+
+/* char status;
+  double T;
+
+status = pressure.startTemperature();
+  if (status != 0)
+  {
+    // Wait for the measurement to complete:
+    delay(status);
+
+    // Retrieve the completed temperature measurement:
+    // Note that the measurement is stored in the variable T.
+    // Function returns 1 if successful, 0 if failure.
+
+    status = pressure.getTemperature(T);
+    if (status != 0)
+    {
+      // Print out the measurement:
+      Serial.print("temperature: ");
+      Serial.print(T,2);
+      Serial.print(" deg C, ");
+      Serial.print((9.0/5.0)*T+32.0,2);
+      Serial.println(" deg F");
+    }
+  }*/
+ 
+  display.setCursor(30, 0);
+  display.print(gps.speed.mph());
+  display.setCursor(30, 10);
+  display.print(gps.altitude.feet());
+  display.display();
+  display.setCursor(35, 20);
+  display.print(gps.satellites.value());
+  display.display();
+
+  //delay(1000); 
+}
+ 
+ /*//LCD output code
+   lcd.clear();
+   lcd.setCursor(0,0);// set the cursor on the first row and column
+   lcd.print("LAT=");
+   lcd.print((float)gps.location.lat(),6);//print the humidity
+   lcd.print("*");
+   //lcd.setCursor(0,1);//set the cursor on the second row and first column
+   //lcd.print("LONG=");
+   //lcd.print((float)gps.location.lng(),6);//print the temperature
+   //lcd.print("*");
+   lcd.setCursor(0,2);//set the cursor on the second row and first column
+   lcd.print("ALT=");
+   lcd.print((float)gps.altitude.feet());//print the temperature
+   lcd.print("ft");
+   lcd.setCursor(0,1);//set the cursor on the second row and first column
+   lcd.print("SPEED=");
+   lcd.print((float)gps.speed.mph());//print the temperature
+   lcd.print("MPH");
+   delay(1000);
+   lcd.clear();
+
